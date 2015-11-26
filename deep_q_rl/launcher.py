@@ -138,6 +138,10 @@ def process_args(args, defaults, description):
                         type=bool, default=defaults.CUDNN_DETERMINISTIC,
                         help=('Whether to use deterministic backprop. ' +
                               '(default: %(default)s)'))
+## Here !!!
+    parser.add_argument('--record_screen_dir', dest="record_screen_dir",
+                        type=str, default="",
+                        help='Specifies a directory to hold the recorded frames' )
 
     parameters = parser.parse_args(args)
     if parameters.experiment_prefix is None:
@@ -199,6 +203,11 @@ def launch(args, defaults, description):
     ale.setBool('display_screen', parameters.display_screen)
     ale.setFloat('repeat_action_probability',
                  parameters.repeat_action_probability)
+
+## Here !!!
+    if isinstance( parameters.record_screen_dir, str ) :
+      if len( parameters.record_screen_dir ) :
+        ale.setString('record_screen_dir', parameters.record_screen_dir)
 
     ale.loadROM(full_rom_path)
 
