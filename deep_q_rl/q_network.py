@@ -19,6 +19,8 @@ import numpy as np
 
 from updates import deepmind_rmsprop
 
+from batch_norm import batch_norm
+
 class DeepQLearner:
     """
     Deep Q-learning network using Lasagne.
@@ -145,21 +147,25 @@ class DeepQLearner:
                       output_dim, num_frames, batch_size):
         if network_type == "nature_cuda":
             return self.build_nature_network(input_width, input_height,
-                                             output_dim, num_frames, batch_size)
+                                             output_dim, num_frames, batch_size, batch_norm=False)
         if network_type == "nature_dnn":
             return self.build_nature_network_dnn(input_width, input_height,
                                                  output_dim, num_frames,
-                                                 batch_size)
+                                                 batch_size, batch_norm=False)
         elif network_type == "nips_cuda":
             return self.build_nips_network(input_width, input_height,
-                                           output_dim, num_frames, batch_size)
+                                           output_dim, num_frames, batch_size, batch_norm=False)
         elif network_type == "nips_dnn":
             return self.build_nips_network_dnn(input_width, input_height,
                                                output_dim, num_frames,
-                                               batch_size)
+                                               batch_size, batch_norm=False)
         elif network_type == "linear":
             return self.build_linear_network(input_width, input_height,
                                              output_dim, num_frames, batch_size)
+        elif network_type == "nature_dnn_batch":
+            return self.build_nature_network_dnn(input_width, input_height,
+                                                 output_dim, num_frames,
+                                                 batch_size, batch_norm=True)
         else:
             raise ValueError("Unrecognized network: {}".format(network_type))
 
@@ -207,7 +213,7 @@ class DeepQLearner:
         lasagne.layers.helper.set_all_param_values( self.next_l_out, all_params )
 
     def build_nature_network(self, input_width, input_height, output_dim,
-                             num_frames, batch_size):
+                             num_frames, batch_size, batch_norm = False):
         """
         Build a large network consistent with the DeepMind Nature paper.
         """
@@ -227,6 +233,8 @@ class DeepQLearner:
             b=lasagne.init.Constant(.1),
             dimshuffle=True
         )
+        if batch_norm :
+            l_conv1 = batch_norm( l_conv1 )
 
         l_conv2 = cuda_convnet.Conv2DCCLayer(
             l_conv1,
@@ -238,6 +246,8 @@ class DeepQLearner:
             b=lasagne.init.Constant(.1),
             dimshuffle=True
         )
+        if batch_norm :
+            l_conv2 = batch_norm( l_conv2 )
 
         l_conv3 = cuda_convnet.Conv2DCCLayer(
             l_conv2,
@@ -249,6 +259,8 @@ class DeepQLearner:
             b=lasagne.init.Constant(.1),
             dimshuffle=True
         )
+        if batch_norm :
+            l_conv3 = batch_norm( l_conv3 )
 
         l_hidden1 = lasagne.layers.DenseLayer(
             l_conv3,
@@ -257,6 +269,8 @@ class DeepQLearner:
             W=lasagne.init.HeUniform(),
             b=lasagne.init.Constant(.1)
         )
+        if batch_norm :
+            l_hidden1 = batch_norm( l_hidden1 )
 
         l_out = lasagne.layers.DenseLayer(
             l_hidden1,
@@ -268,9 +282,8 @@ class DeepQLearner:
 
         return l_out
 
-
     def build_nature_network_dnn(self, input_width, input_height, output_dim,
-                                 num_frames, batch_size):
+                                 num_frames, batch_size, batch_norm = False):
         """
         Build a large network consistent with the DeepMind Nature paper.
         """
@@ -289,6 +302,8 @@ class DeepQLearner:
             W=lasagne.init.HeUniform(),
             b=lasagne.init.Constant(.1)
         )
+        if batch_norm :
+            l_conv1 = batch_norm( l_conv1 )
 
         l_conv2 = dnn.Conv2DDNNLayer(
             l_conv1,
@@ -299,6 +314,8 @@ class DeepQLearner:
             W=lasagne.init.HeUniform(),
             b=lasagne.init.Constant(.1)
         )
+        if batch_norm :
+            l_conv2 = batch_norm( l_conv2 )
 
         l_conv3 = dnn.Conv2DDNNLayer(
             l_conv2,
@@ -309,6 +326,8 @@ class DeepQLearner:
             W=lasagne.init.HeUniform(),
             b=lasagne.init.Constant(.1)
         )
+        if batch_norm :
+            l_conv3 = batch_norm( l_conv3 )
 
         l_hidden1 = lasagne.layers.DenseLayer(
             l_conv3,
@@ -317,6 +336,8 @@ class DeepQLearner:
             W=lasagne.init.HeUniform(),
             b=lasagne.init.Constant(.1)
         )
+        if batch_norm :
+            l_hidden1 = batch_norm( l_hidden1 )
 
         l_out = lasagne.layers.DenseLayer(
             l_hidden1,
@@ -328,10 +349,8 @@ class DeepQLearner:
 
         return l_out
 
-
-
     def build_nips_network(self, input_width, input_height, output_dim,
-                           num_frames, batch_size):
+                           num_frames, batch_size, batch_norm = False):
         """
         Build a network consistent with the 2013 NIPS paper.
         """
@@ -351,6 +370,8 @@ class DeepQLearner:
             b=lasagne.init.Constant(.1),
             dimshuffle=True
         )
+        if batch_norm :
+            l_conv1 = batch_norm( l_conv1 )
 
         l_conv2 = cuda_convnet.Conv2DCCLayer(
             l_conv1,
@@ -363,6 +384,8 @@ class DeepQLearner:
             b=lasagne.init.Constant(.1),
             dimshuffle=True
         )
+        if batch_norm :
+            l_conv2 = batch_norm( l_conv2 )
 
         l_hidden1 = lasagne.layers.DenseLayer(
             l_conv2,
@@ -372,6 +395,8 @@ class DeepQLearner:
             W=lasagne.init.Normal(.01),
             b=lasagne.init.Constant(.1)
         )
+        if batch_norm :
+            l_hidden1 = batch_norm( l_hidden1 )
 
         l_out = lasagne.layers.DenseLayer(
             l_hidden1,
@@ -384,9 +409,8 @@ class DeepQLearner:
 
         return l_out
 
-
     def build_nips_network_dnn(self, input_width, input_height, output_dim,
-                               num_frames, batch_size):
+                               num_frames, batch_size, batch_norm = False):
         """
         Build a network consistent with the 2013 NIPS paper.
         """
@@ -408,6 +432,8 @@ class DeepQLearner:
             W=lasagne.init.Normal(.01),
             b=lasagne.init.Constant(.1)
         )
+        if batch_norm :
+            l_conv1 = batch_norm( l_conv1 )
 
         l_conv2 = dnn.Conv2DDNNLayer(
             l_conv1,
@@ -419,6 +445,8 @@ class DeepQLearner:
             W=lasagne.init.Normal(.01),
             b=lasagne.init.Constant(.1)
         )
+        if batch_norm :
+            l_conv2 = batch_norm( l_conv2 )
 
         l_hidden1 = lasagne.layers.DenseLayer(
             l_conv2,
@@ -428,6 +456,8 @@ class DeepQLearner:
             W=lasagne.init.Normal(.01),
             b=lasagne.init.Constant(.1)
         )
+        if batch_norm :
+            l_hidden1 = batch_norm( l_hidden1 )
 
         l_out = lasagne.layers.DenseLayer(
             l_hidden1,
@@ -439,7 +469,6 @@ class DeepQLearner:
         )
 
         return l_out
-
 
     def build_linear_network(self, input_width, input_height, output_dim,
                              num_frames, batch_size):
@@ -461,6 +490,7 @@ class DeepQLearner:
         )
 
         return l_out
+
 
 def main():
     net = DeepQLearner(84, 84, 16, 4, .99, .00025, .95, .95, 10000,
