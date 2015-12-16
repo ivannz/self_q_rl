@@ -46,16 +46,12 @@ class ALEExperiment(object):
         Run the desired number of training epochs, a testing epoch
         is conducted after each training epoch.
         """
-        for epoch in range(1, self.num_epochs + 1):
-            self.run_epoch(epoch, self.epoch_length)
-            self.agent.finish_epoch(epoch)
+        for epoch in range( 1, self.num_epochs + 1 ):
+            self.run_epoch( epoch, self.epoch_length, testing = False )
+            if self.test_length > 0 :
+                self.run_epoch( epoch, self.test_length, testing = True )
 
-            if self.test_length > 0:
-                self.agent.start_testing()
-                self.run_epoch(epoch, self.test_length, True)
-                self.agent.finish_testing(epoch)
-
-    def run_epoch(self, epoch, num_steps, testing=False):
+    def run_epoch(self, epoch, num_steps, testing = False):
         """ Run one 'epoch' of training or testing, where an epoch is defined
         by the number of steps executed.  Prints a progress report after
         every trial
@@ -68,6 +64,8 @@ class ALEExperiment(object):
         """
         self.terminal_lol = False # Make sure each epoch starts with a reset.
         steps_left = num_steps
+
+        self.agent.start_epoch( epoch, testing )
         while steps_left > 0:
             prefix = "testing" if testing else "training"
             logging.info(prefix + " epoch: " + str(epoch) + " steps_left: " +
@@ -76,49 +74,7 @@ class ALEExperiment(object):
 
             steps_left -= num_steps
 
-
-    def _init_episode(self):
-        """ This method resets the game if needed, performs enough null
-        actions to ensure that the screen buffer is ready and optionally
-        performs a randomly determined number of null action to randomize
-        the initial game state."""
-
-        if not self.terminal_lol or self.ale.game_over():
-            self.ale.reset_game()
-
-            if self.max_start_nullops > 0:
-                random_actions = self.rng.randint(0, self.max_start_nullops+1)
-                for _ in range(random_actions):
-                    self._act(0) # Null action
-
-        # Make sure the screen buffer is filled at the beginning of
-        # each episode...
-        self._act(0)
-        self._act(0)
-
-
-    def _act(self, action):
-        """Perform the indicated action for a single frame, return the
-        resulting reward and store the resulting screen image in the
-        buffer
-
-        """
-        reward = self.ale.act(action)
-        index = self.buffer_count % self.buffer_length
-
-        self.ale.getScreenGrayscale(self.screen_buffer[index, ...])
-
-        self.buffer_count += 1
-        return reward
-
-    def _step(self, action):
-        """ Repeat one action the appopriate number of times and return
-        the summed reward. """
-        reward = 0
-        for _ in range(self.frame_skip):
-            reward += self._act(action)
-
-        return reward
+        self.agent.finish_epoch( )
 
     def run_episode(self, max_steps, testing):
         """Run a single training episode.
@@ -136,23 +92,76 @@ class ALEExperiment(object):
 
         start_lives = self.ale.lives()
 
-        action = self.agent.start_episode(self.get_observation())
-        num_steps = 0
-        while True:
-            reward = self._step(self.min_action_set[action])
-            self.terminal_lol = (self.death_ends_episode and not testing and
-                                 self.ale.lives() < start_lives)
-            terminal = self.ale.game_over() or self.terminal_lol
-            num_steps += 1
+## Prepare the internal state of the agent for a new episode.
+        action = self.agent.start_episode( self.get_observation( ) )
 
-            if terminal or num_steps >= max_steps:
-                self.agent.end_episode(reward, terminal)
+        num_steps = 0
+        while True :
+## Interact with the ALE to get the reward for the currently chosen action
+            reward = self._step( self.min_action_set[ action ] )
+            observation = self.get_observation( )
+## Determine the terminating conditions
+## Actually in games death is when a player runs out of lives.
+            self.terminal_lol = ( self.death_ends_episode and not testing and
+## Probably terminating with a life loss is too restrictive.
+                                 self.ale.lives( ) < start_lives )
+            terminal = self.ale.game_over( ) or self.terminal_lol
+            num_steps += 1
+            if terminal or num_steps >= max_steps :
                 break
 
-            action = self.agent.step(reward, self.get_observation())
+## If the game goes on, choose an action
+            action = self.agent.step( reward, observation )
+
+## End the episode: basically finalizes the reward and step counters,
+##   does the logging and adds the last state-action-reward to the dataset.
+        self.agent.end_episode( reward, terminal )
+
         return terminal, num_steps
 
+    def _init_episode(self):
+        """ This method resets the game if needed, performs enough null
+        actions to ensure that the screen buffer is ready and optionally
+        performs a randomly determined number of null action to randomize
+        the initial game state."""
 
+        if not self.terminal_lol or self.ale.game_over():
+            self.ale.reset_game()
+
+            if self.max_start_nullops > 0:
+                random_actions = self.rng.randint( 0, self.max_start_nullops + 1 )
+                for _ in range(random_actions):
+                    self._act(0) # Null action
+
+        # Make sure the screen buffer is filled at the beginning of
+        # each episode...
+        self._act(0)
+        self._act(0)
+
+    def _step(self, action):
+        """ Repeat one action the appopriate number of times and return
+        the summed reward. """
+        reward = 0
+        for _ in range( self.frame_skip ) :
+            reward += self._act( action )
+
+        return reward
+
+    def _act(self, action):
+        """Perform the indicated action for a single frame, return the
+        resulting reward and store the resulting screen image in the
+        buffer
+
+        """
+        reward = self.ale.act(action)
+        index = self.buffer_count % self.buffer_length
+
+        self.ale.getScreenGrayscale(self.screen_buffer[index, ...])
+
+        self.buffer_count += 1
+        return reward
+
+#### Sensory input
     def get_observation(self):
         """ Resize and merge the previous two screen images """
 
