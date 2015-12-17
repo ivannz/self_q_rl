@@ -43,16 +43,14 @@ class NeuralAgent(object):
 
 ## Allocate experience replay datasets: a large one for trainig ...
         self.dataset_training = ale_data_set.DataSet( width = self.image_width, height = self.image_height,
-                                                      rng = self.random_state,
-                                                      max_steps = self.replay_memory_size,
+                                                      rng = self.random_state, max_steps = self.replay_memory_size,
                                                       phi_length = self.phi_length )
 ##   ... and a small one for testing.
 ## Since during the testing pahse no learning takes place, we just need
 ##  this dataset to be big enough to hold the current phi ( state x phi_length ).
 ##  Thus "max_steps" is set to double the size of phi.
         self.dataset_testing = ale_data_set.DataSet( width = self.image_width, height = self.image_height,
-                                                     rng = self.random_state,
-                                                     max_steps = self.phi_length * 2,
+                                                     rng = self.random_state, max_steps = self.phi_length * 2,
                                                      phi_length = self.phi_length )
 
 ## The epsilon-probability changes across the epochs!
@@ -79,6 +77,9 @@ class NeuralAgent(object):
         self.holdout_observations = None
 ## Logging:
         logging.info( "NeuralAgent: actions %d, phi %d" % ( self.num_actions, self.phi_length, ) )
+
+    def get_training_dataset( self ) :
+        return self.dataset_training
 
 ## Handy (?) functions to open and create the files
     def _open_results_file( self ) :

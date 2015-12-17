@@ -17,9 +17,10 @@ CROP_OFFSET = 8
 class ALEExperiment(object):
     def __init__(self, ale, agent, resized_width, resized_height,
                  resize_method, num_epochs, epoch_length, test_length,
-                 frame_skip, death_ends_episode, max_start_nullops, rng):
+                 frame_skip, death_ends_episode, max_start_nullops, rng, coach = None):
         self.ale = ale
         self.agent = agent
+        self.coach = coach
         self.num_epochs = num_epochs
         self.epoch_length = epoch_length
         self.test_length = test_length
@@ -39,19 +40,23 @@ class ALEExperiment(object):
 
         self.terminal_lol = False # Most recent episode ended on a loss of life
         self.max_start_nullops = max_start_nullops
-        self.rng = rng
+        self.random_state = rng
 
     def run(self):
         """
         Run the desired number of training epochs, a testing epoch
         is conducted after each training epoch.
         """
-        for epoch in range( 1, self.num_epochs + 1 ):
-            self.run_epoch( epoch, self.epoch_length, testing = False )
-            if self.test_length > 0 :
-                self.run_epoch( epoch, self.test_length, testing = True )
+## let the coach, if it is defined, fill the experience banks of the agent
+        if self.coach is not None :
+            self.run_epoch( self.coach, 0, self.epoch_length, testing = False )
 
-    def run_epoch(self, epoch, num_steps, testing = False):
+        for epoch in range( 1, self.num_epochs + 1 ) :
+            self.run_epoch( self.agent, epoch, self.epoch_length, testing = False )
+            if self.test_length > 0 :
+                self.run_epoch( self.agent, epoch, self.test_length, testing = True )
+
+    def run_epoch(self, agent, epoch, num_steps, testing = False):
         """ Run one 'epoch' of training or testing, where an epoch is defined
         by the number of steps executed.  Prints a progress report after
         every trial
@@ -65,18 +70,18 @@ class ALEExperiment(object):
         self.terminal_lol = False # Make sure each epoch starts with a reset.
         steps_left = num_steps
 
-        self.agent.start_epoch( epoch, testing )
+        agent.start_epoch( epoch, testing )
         while steps_left > 0:
             prefix = "testing" if testing else "training"
             logging.info(prefix + " epoch: " + str(epoch) + " steps_left: " +
                          str(steps_left))
-            _, num_steps = self.run_episode(steps_left, testing)
+            _, num_steps = self.run_episode( agent, steps_left, testing )
 
             steps_left -= num_steps
 
-        self.agent.finish_epoch( )
+        agent.finish_epoch( )
 
-    def run_episode(self, max_steps, testing):
+    def run_episode(self, agent, max_steps, testing):
         """Run a single training episode.
 
         The boolean terminal value returned indicates whether the
@@ -93,7 +98,7 @@ class ALEExperiment(object):
         start_lives = self.ale.lives()
 
 ## Prepare the internal state of the agent for a new episode.
-        action = self.agent.start_episode( self.get_observation( ) )
+        action = agent.start_episode( self.get_observation( ) )
 
         num_steps = 0
         while True :
@@ -111,11 +116,11 @@ class ALEExperiment(object):
                 break
 
 ## If the game goes on, choose an action
-            action = self.agent.step( reward, observation )
+            action = agent.step( reward, observation )
 
 ## End the episode: basically finalizes the reward and step counters,
 ##   does the logging and adds the last state-action-reward to the dataset.
-        self.agent.end_episode( reward, terminal )
+        agent.end_episode( reward, terminal )
 
         return terminal, num_steps
 
@@ -129,7 +134,7 @@ class ALEExperiment(object):
             self.ale.reset_game()
 
             if self.max_start_nullops > 0:
-                random_actions = self.rng.randint( 0, self.max_start_nullops + 1 )
+                random_actions = self.random_state.randint( 0, self.max_start_nullops + 1 )
                 for _ in range(random_actions):
                     self._act(0) # Null action
 

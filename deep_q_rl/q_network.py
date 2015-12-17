@@ -18,7 +18,6 @@ import theano.tensor as T
 import numpy as np
 
 from updates import deepmind_rmsprop
-
 from batch_norm import batch_norm as batch_norm_layer
 
 class DeepQLearner:
@@ -50,12 +49,12 @@ class DeepQLearner:
 
         self.update_counter = 0
 
-        self.l_out = self.build_network(network_type, input_width, input_height,
-                                        num_actions, num_frames, batch_size)
+        self.l_out = self.build_network( network_type, input_width, input_height,
+                                         num_actions, num_frames, batch_size )
         if self.freeze_interval > 0:
-            self.next_l_out = self.build_network(network_type, input_width, input_height,
-                                                 num_actions, num_frames, batch_size)
-            self.reset_q_hat()
+            self.next_l_out = self.build_network( network_type, input_width, input_height,
+                                                  num_actions, num_frames, batch_size )
+            self.reset_q_hat( )
 
         states, next_states = T.tensor4( 'states' ), T.tensor4( 'next_states' )
         actions, rewards = T.icol( 'actions' ), T.col( 'rewards' )
@@ -71,25 +70,29 @@ class DeepQLearner:
                                              broadcastable = ( False, True ) )
         self.terminals_shared = theano.shared( np.zeros( ( batch_size, 1 ), dtype = 'int32' ),
                                                broadcastable = ( False, True ) )
+## Get learned Q-values
+        q_vals_test = lasagne.layers.get_output( self.l_out, states / input_scale, deterministic = True )
+        # q_vals_test = theano.gradient.disconnected_grad( q_vals_test )
 
-        q_vals = lasagne.layers.get_output( self.l_out, states / input_scale )
+        q_vals_train = lasagne.layers.get_output( self.l_out, states / input_scale, deterministic = False )
         
         if self.freeze_interval > 0:
-            next_q_vals = lasagne.layers.get_output(self.next_l_out,
-                                                    next_states / input_scale)
+            target_q_vals = lasagne.layers.get_output( self.next_l_out,
+                                                       next_states / input_scale, deterministic = True)
         else:
-            next_q_vals = lasagne.layers.get_output(self.l_out,
-                                                    next_states / input_scale)
-            next_q_vals = theano.gradient.disconnected_grad(next_q_vals)
-
+            target_q_vals = lasagne.layers.get_output( self.l_out,
+                                                       next_states / input_scale, deterministic = True)
+            target_q_vals = theano.gradient.disconnected_grad( target_q_vals )
+## The traget depends on the received rewards and the discounted future
+##   reward stream for the given action in the current state.
         target = ( rewards + ( T.ones_like( terminals ) - terminals ) *
-                             self.discount * T.max( next_q_vals, axis = 1, keepdims = True ) )
+                             self.discount * T.max( target_q_vals, axis = 1, keepdims = True ) )
 ##  target - b x 1, where b is batch size.
 ##  q_vals - b x A, where A is the number of outputs of the Q-net
 ## Theano differentiates indexed (and reduced) arrays in a clever manner:
 ##  it sets all left out gradients to zero. THIS IS CORRECT!
 ## \nabla_\theta diff = - 1_{a = a_j} \nabla Q( s, a_j, \theta) \,.
-        diff = target - q_vals[ T.arange( batch_size ),
+        diff = target - q_vals_train[ T.arange( batch_size ),
                                 actions.reshape( ( -1, ) ) ].reshape( ( -1, 1 ) )
 
         if self.clip_delta > 0:
@@ -135,16 +138,15 @@ class DeepQLearner:
             raise ValueError("Unrecognized update: {}".format(update_rule))
 
         if self.momentum > 0:
-            updates = lasagne.updates.apply_momentum(updates, None,
-                                                     self.momentum)
+            updates = lasagne.updates.apply_momentum(updates, None, self.momentum)
 
-        self._train = theano.function([], [loss, q_vals], updates=updates,
-                                      givens=givens)
-        self._q_vals = theano.function([], q_vals,
-                                       givens={states: self.states_shared})
+        self._train = theano.function([], loss, updates=updates, givens=givens)
+        self._q_vals = theano.function([], q_vals_test, givens={states: self.states_shared})
+
 
     def build_network(self, network_type, input_width, input_height,
                       output_dim, num_frames, batch_size):
+        """Builds a network."""
         if network_type == "nature_cuda":
             return self.build_nature_network(input_width, input_height,
                                              output_dim, num_frames, batch_size, batch_norm=False)
@@ -170,7 +172,6 @@ class DeepQLearner:
             raise ValueError("Unrecognized network: {}".format(network_type))
 
 
-
     def train(self, states, actions, rewards, next_states, terminals):
         """
         Train one batch.
@@ -186,31 +187,33 @@ class DeepQLearner:
 
         Returns: average loss
         """
-
         self.states_shared.set_value(states)
         self.next_states_shared.set_value(next_states)
         self.actions_shared.set_value(actions)
         self.rewards_shared.set_value(rewards)
         self.terminals_shared.set_value(terminals)
-        if (self.freeze_interval > 0 and
-            self.update_counter % self.freeze_interval == 0):
+        if ( self.freeze_interval > 0 and
+             self.update_counter % self.freeze_interval == 0 ):
             self.reset_q_hat( )
-        loss, _ = self._train( )
+        loss = self._train( )
         self.update_counter += 1
         return np.sqrt(loss)
 
-    def q_vals(self, state):
-        # test_prediction = lasagne.layers.get_output(network, deterministic=True)
+
+    def q_vals( self, state ) :
         self.states_shared.set_value( state[ np.newaxis ].astype( theano.config.floatX ) )
         return self._q_vals( )[ 0 ]
+
 
     def choose_action( self, state ) :
         q_vals = self.q_vals( state )
         return np.argmax( q_vals )
 
+
     def reset_q_hat( self ) :
         all_params = lasagne.layers.helper.get_all_param_values( self.l_out )
         lasagne.layers.helper.set_all_param_values( self.next_l_out, all_params )
+
 
     def build_nature_network(self, input_width, input_height, output_dim,
                              num_frames, batch_size, batch_norm = False):
@@ -220,7 +223,7 @@ class DeepQLearner:
         from lasagne.layers import cuda_convnet
 
         l_in = lasagne.layers.InputLayer(
-                shape = ( None, num_frames, input_width, input_height )
+                shape=( None, num_frames, input_width, input_height )
             )
 
         l_conv1 = cuda_convnet.Conv2DCCLayer(
@@ -421,7 +424,6 @@ class DeepQLearner:
             shape=( None, num_frames, input_width, input_height)
         )
 
-
         l_conv1 = dnn.Conv2DDNNLayer(
             l_in,
             num_filters=16,
@@ -478,7 +480,7 @@ class DeepQLearner:
         """
 
         l_in = lasagne.layers.InputLayer(
-            shape = ( None, num_frames, input_width, input_height )
+            shape=( None, num_frames, input_width, input_height )
         )
 
         l_out = lasagne.layers.DenseLayer(
@@ -493,8 +495,14 @@ class DeepQLearner:
 
 
 def main():
-    net = DeepQLearner(84, 84, 16, 4, .99, .00025, .95, .95, 10000,
-                       32, 'nature_cuda')
+    # net = DeepQLearner(84, 84, 16, 4, .99, .00025, .95, .95, 10000,
+    #                    32, 'nature_cuda')
+    net = DeepQLearner(input_width = 84, input_height = 84, num_actions = 16,
+                       num_frames = 4, discount = .99, learning_rate = .00025,
+                       rho = .95, rms_epsilon = .95, momentum = 0, clip_delta = 1.0,
+                       freeze_interval = 10000, batch_size = 32, network_type = 'nature_dnn_batch',
+                       update_rule = "deepmind_rmsprop", batch_accumulator = 'sum',
+                       rng = np.random.RandomState(123456) )
 
 
 if __name__ == '__main__':

@@ -14,6 +14,7 @@ import theano
 
 import ale_experiment
 import ale_agent
+import ale_coach
 import q_network
 
 def process_args(args, defaults, description):
@@ -142,6 +143,11 @@ def process_args(args, defaults, description):
     parser.add_argument('--record_screen_dir', dest="record_screen_dir",
                         type=str, default="",
                         help='Specifies a directory to hold the recorded frames' )
+    parser.add_argument('--nn-coach-file', dest="nn_coach_file", type=str, default=None,
+                        help='Pickle file containing trained net used for coaching.')
+    parser.add_argument('--coach-epsilon', dest="coach_epsilon",
+                        type=float, default=defaults.EPSILON_MIN,
+                        help='Minimum epsilon. (default: %(default)s)')
 
     parameters = parser.parse_args(args)
     if parameters.experiment_prefix is None:
@@ -231,8 +237,8 @@ def launch(args, defaults, description):
                                          parameters.batch_accumulator,
                                          rng)
     else:
-        handle = open(parameters.nn_file, 'r')
-        network = cPickle.load(handle)
+        with open(parameters.nn_file, 'r') as handle :
+            network = cPickle.load(handle)
 
     agent = ale_agent.NeuralAgent(network,
                                   parameters.epsilon_start,
@@ -244,6 +250,14 @@ def launch(args, defaults, description):
                                   parameters.update_frequency,
                                   rng)
 
+## Get the coach: let it have read/write access to the agent's databanks
+    coach = None
+    if parameters.nn_coach_file is not None:
+        with open(parameters.nn_coach_file, 'r') as handle :
+            network = cPickle.load(handle)
+        coach = ale_coach.NeuralCoach(network, agent.get_training_dataset(),
+                                      parameters.coach_epsilon, rng)
+
     experiment = ale_experiment.ALEExperiment(ale, agent,
                                               defaults.RESIZED_WIDTH,
                                               defaults.RESIZED_HEIGHT,
@@ -254,7 +268,7 @@ def launch(args, defaults, description):
                                               parameters.frame_skip,
                                               parameters.death_ends_episode,
                                               parameters.max_start_nullops,
-                                              rng)
+                                              rng, coach = coach )
 
 
     experiment.run()
