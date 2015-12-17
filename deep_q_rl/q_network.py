@@ -19,7 +19,7 @@ import numpy as np
 
 from updates import deepmind_rmsprop
 
-from batch_norm import batch_norm_layer
+from batch_norm import batch_norm as batch_norm_layer
 
 class DeepQLearner:
     """
