@@ -31,10 +31,10 @@ class Defaults:
     # Agent/Network parameters:
     # ----------------------
     UPDATE_RULE = 'deepmind_rmsprop'
-    # BATCH_ACCUMULATOR = 'sum'
-    BATCH_ACCUMULATOR = 'mean'
-    LEARNING_RATE = .025
+    BATCH_ACCUMULATOR = 'sum'
+    # BATCH_ACCUMULATOR = 'mean'
     # LEARNING_RATE = .025
+    LEARNING_RATE = .00025
     DISCOUNT = .99
     RMS_DECAY = .95 # (Rho)
     RMS_EPSILON = .01
@@ -52,8 +52,8 @@ class Defaults:
     UPDATE_FREQUENCY = 4
     REPLAY_MEMORY_SIZE = 1000000
     BATCH_SIZE = 32
-    NETWORK_TYPE = "nature_dnn_batch"
-    # NETWORK_TYPE = "nature_dnn"
+    # NETWORK_TYPE = "nature_dnn_batch"
+    NETWORK_TYPE = "nature_dnn"
     FREEZE_INTERVAL = 10000
     REPLAY_START_SIZE = 50000
     RESIZE_METHOD = 'scale'

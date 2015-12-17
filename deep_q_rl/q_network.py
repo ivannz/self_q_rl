@@ -92,8 +92,7 @@ class DeepQLearner:
 ## Theano differentiates indexed (and reduced) arrays in a clever manner:
 ##  it sets all left out gradients to zero. THIS IS CORRECT!
 ## \nabla_\theta diff = - 1_{a = a_j} \nabla Q( s, a_j, \theta) \,.
-        diff = target - q_vals_train[ T.arange( batch_size ),
-                                actions.reshape( ( -1, ) ) ].reshape( ( -1, 1 ) )
+        diff = target - q_vals_train[ T.arange( batch_size ), actions.reshape( ( -1, ) ) ].reshape( ( -1, 1 ) )
 
         if self.clip_delta > 0:
             # If we simply take the squared clipped diff as our loss,
