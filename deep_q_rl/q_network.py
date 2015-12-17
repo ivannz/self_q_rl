@@ -19,7 +19,7 @@ import numpy as np
 
 from updates import deepmind_rmsprop
 
-from batch_norm import batch_norm
+from batch_norm import batch_norm_layer
 
 class DeepQLearner:
     """
@@ -234,7 +234,7 @@ class DeepQLearner:
             dimshuffle=True
         )
         if batch_norm :
-            l_conv1 = batch_norm( l_conv1 )
+            l_conv1 = batch_norm_layer( l_conv1 )
 
         l_conv2 = cuda_convnet.Conv2DCCLayer(
             l_conv1,
@@ -247,7 +247,7 @@ class DeepQLearner:
             dimshuffle=True
         )
         if batch_norm :
-            l_conv2 = batch_norm( l_conv2 )
+            l_conv2 = batch_norm_layer( l_conv2 )
 
         l_conv3 = cuda_convnet.Conv2DCCLayer(
             l_conv2,
@@ -260,7 +260,7 @@ class DeepQLearner:
             dimshuffle=True
         )
         if batch_norm :
-            l_conv3 = batch_norm( l_conv3 )
+            l_conv3 = batch_norm_layer( l_conv3 )
 
         l_hidden1 = lasagne.layers.DenseLayer(
             l_conv3,
@@ -270,7 +270,7 @@ class DeepQLearner:
             b=lasagne.init.Constant(.1)
         )
         if batch_norm :
-            l_hidden1 = batch_norm( l_hidden1 )
+            l_hidden1 = batch_norm_layer( l_hidden1 )
 
         l_out = lasagne.layers.DenseLayer(
             l_hidden1,
@@ -303,7 +303,7 @@ class DeepQLearner:
             b=lasagne.init.Constant(.1)
         )
         if batch_norm :
-            l_conv1 = batch_norm( l_conv1 )
+            l_conv1 = batch_norm_layer( l_conv1 )
 
         l_conv2 = dnn.Conv2DDNNLayer(
             l_conv1,
@@ -315,7 +315,7 @@ class DeepQLearner:
             b=lasagne.init.Constant(.1)
         )
         if batch_norm :
-            l_conv2 = batch_norm( l_conv2 )
+            l_conv2 = batch_norm_layer( l_conv2 )
 
         l_conv3 = dnn.Conv2DDNNLayer(
             l_conv2,
@@ -327,7 +327,7 @@ class DeepQLearner:
             b=lasagne.init.Constant(.1)
         )
         if batch_norm :
-            l_conv3 = batch_norm( l_conv3 )
+            l_conv3 = batch_norm_layer( l_conv3 )
 
         l_hidden1 = lasagne.layers.DenseLayer(
             l_conv3,
@@ -337,7 +337,7 @@ class DeepQLearner:
             b=lasagne.init.Constant(.1)
         )
         if batch_norm :
-            l_hidden1 = batch_norm( l_hidden1 )
+            l_hidden1 = batch_norm_layer( l_hidden1 )
 
         l_out = lasagne.layers.DenseLayer(
             l_hidden1,
@@ -371,7 +371,7 @@ class DeepQLearner:
             dimshuffle=True
         )
         if batch_norm :
-            l_conv1 = batch_norm( l_conv1 )
+            l_conv1 = batch_norm_layer( l_conv1 )
 
         l_conv2 = cuda_convnet.Conv2DCCLayer(
             l_conv1,
@@ -385,7 +385,7 @@ class DeepQLearner:
             dimshuffle=True
         )
         if batch_norm :
-            l_conv2 = batch_norm( l_conv2 )
+            l_conv2 = batch_norm_layer( l_conv2 )
 
         l_hidden1 = lasagne.layers.DenseLayer(
             l_conv2,
@@ -396,7 +396,7 @@ class DeepQLearner:
             b=lasagne.init.Constant(.1)
         )
         if batch_norm :
-            l_hidden1 = batch_norm( l_hidden1 )
+            l_hidden1 = batch_norm_layer( l_hidden1 )
 
         l_out = lasagne.layers.DenseLayer(
             l_hidden1,
@@ -433,7 +433,7 @@ class DeepQLearner:
             b=lasagne.init.Constant(.1)
         )
         if batch_norm :
-            l_conv1 = batch_norm( l_conv1 )
+            l_conv1 = batch_norm_layer( l_conv1 )
 
         l_conv2 = dnn.Conv2DDNNLayer(
             l_conv1,
@@ -446,7 +446,7 @@ class DeepQLearner:
             b=lasagne.init.Constant(.1)
         )
         if batch_norm :
-            l_conv2 = batch_norm( l_conv2 )
+            l_conv2 = batch_norm_layer( l_conv2 )
 
         l_hidden1 = lasagne.layers.DenseLayer(
             l_conv2,
@@ -457,7 +457,7 @@ class DeepQLearner:
             b=lasagne.init.Constant(.1)
         )
         if batch_norm :
-            l_hidden1 = batch_norm( l_hidden1 )
+            l_hidden1 = batch_norm_layer( l_hidden1 )
 
         l_out = lasagne.layers.DenseLayer(
             l_hidden1,
