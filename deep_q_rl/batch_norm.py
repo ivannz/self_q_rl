@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 # Copied from https://github.com/f0k/Lasagne/blob/b2621577f8da128585bbbf0008c105f420a51485/lasagne/layers/normalization.py
+# https://github.com/Lasagne/Lasagne/pull/467
 
 """
 The :class:`LocalResponseNormalization2DLayer
@@ -32,6 +33,8 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 import theano
 import theano.tensor as T
+
+from theano_tensor_nnet_bn import batch_normalization
 
 # from .. import init
 # from .. import nonlinearities
@@ -266,8 +269,10 @@ class BatchNormLayer(Layer):
         if update_averages:
             # Trick: To update the stored statistics, we create memory-aliased
             # clones of the stored statistics:
-            running_mean = theano.clone(self.mean, share_inputs=False)
-            running_var = theano.clone(self.var, share_inputs=False)
+            # running_mean = theano.clone(self.mean, share_inputs=False)
+            # running_var = theano.clone(self.var, share_inputs=False)
+            running_mean = self.mean
+            running_var = self.var
             # set a default update for them:
             running_mean.default_update = ((1 - self.alpha) * running_mean +
                                            self.alpha * input_mean)
@@ -293,9 +298,9 @@ class BatchNormLayer(Layer):
 
         # normalize
         # normalized = (input - mean) * (gamma / std) + beta
-        normalized = T.nnet.batch_normalization(input, gamma=gamma, beta=beta,
-                                                mean=mean, std=std,
-                                                mode=self.mode)
+        normalized = batch_normalization(input, gamma=gamma, beta=beta,
+                                         mean=mean, std=std,
+                                         mode=self.mode)
         return normalized
 
 
@@ -344,6 +349,6 @@ def batch_norm(layer, **kwargs):
         layer.b = None
     layer = BatchNormLayer(layer, **kwargs)
     if nonlinearity is not None:
-        from .special import NonlinearityLayer
+        from lasagne.layers import NonlinearityLayer
         layer = NonlinearityLayer(layer, nonlinearity)
     return layer
