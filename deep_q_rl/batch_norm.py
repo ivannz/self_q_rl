@@ -63,14 +63,24 @@ class BatchNormLayer(lasagne.layers.Layer):
                              "all dimensions/axes not normalized over.")
 ## Initialize the paramters
         dtype = theano.config.floatX
-        self.mean = self.add_param(lasagne.init.Constant(0), shape, 'mean',
-                                   trainable=False, regularizable=False)
-        self.std = self.add_param(lasagne.init.Constant(1), shape, 'std',
-                                  trainable=False, regularizable=False)
-        self.beta = self.add_param(lasagne.init.Constant(0), shape, 'beta',
-                                   trainable=True, regularizable=True)
-        self.gamma = self.add_param(lasagne.init.Constant(1), shape, 'gamma',
-                                    trainable=True, regularizable=False)
+## Accumulated mean and standard deviation of the normalisation interlayer
+        self.mean = T.addbroadcast(
+                        self.add_param(lasagne.init.Constant(0), shape, 'mean',
+                                       trainable=False, regularizable=False),
+                        *self.axes )
+        self.std = T.addbroadcast(
+                        self.add_param(lasagne.init.Constant(1), shape, 'std',
+                                       trainable=False, regularizable=False),
+                        *self.axes )
+## The linear transform of the normalization layer
+        self.beta = T.addbroadcast(
+                        self.add_param(lasagne.init.Constant(0), shape, 'beta',
+                                       trainable=True, regularizable=True),
+                        *self.axes )
+        self.gamma = T.addbroadcast(
+                        self.add_param(lasagne.init.Constant(1), shape, 'gamma',
+                                       trainable=True, regularizable=False),
+                        *self.axes )
 
     def get_output_for(self, input, deterministic=False, **kwargs):
         if deterministic:
@@ -79,26 +89,20 @@ class BatchNormLayer(lasagne.layers.Layer):
             std = self.std
         else:
             # use this batch's mean and std
-            mean = input.mean(self.axes, keepdims=True)
-            std = input.std(self.axes, keepdims=True)
+            mean = T.addbroadcast(T.mean(input, self.axes, keepdims=True), *self.axes)
+            std = T.addbroadcast(T.sqrt(T.var(input, self.axes, keepdims=True) + self.epsilon), *self.axes)
             # and update the stored mean and std:
             # we create (memory-aliased) clones of the stored mean and std
-            running_mean = theano.clone(self.mean, share_inputs=False)
-            running_std = theano.clone(self.std, share_inputs=False)
             # set a default update for them
-            running_mean.default_update = ( ( 1 - self.alpha ) * running_mean + self.alpha * mean )
-            running_std.default_update = ( ( 1 - self.alpha ) * running_std + self.alpha * std )
+            self.mean.default_update = ( ( 1 - self.alpha ) * self.mean + self.alpha * mean )
+            self.std.default_update = ( ( 1 - self.alpha ) * self.std + self.alpha * std )
             # and include them in the graph so their default updates will be
             # applied (although the expressions will be optimized away later,
             #   they are still going to be updated)
-            mean += 0 * running_mean
-            std += 0 * running_std
-        std += self.epsilon
-        mean = T.addbroadcast(mean, *self.axes)
-        std = T.addbroadcast(std, *self.axes)
-        beta = T.addbroadcast(self.beta, *self.axes)
-        gamma = T.addbroadcast(self.gamma, *self.axes)
-        normalized = (input - mean) * (gamma / std) + beta
+            mean += 0 * self.mean
+            std += 0 * self.std
+        input_norm = (input - mean) / std
+        normalized = input_norm * self.gamma + self.beta
         return self.nonlinearity(normalized)
 
 def batch_norm(layer):
