@@ -269,10 +269,10 @@ class BatchNormLayer(Layer):
         if update_averages:
             # Trick: To update the stored statistics, we create memory-aliased
             # clones of the stored statistics:
-            # running_mean = theano.clone(self.mean, share_inputs=False)
-            # running_var = theano.clone(self.var, share_inputs=False)
-            running_mean = self.mean
-            running_var = self.var
+            running_mean = theano.clone(self.mean, share_inputs=False)
+            running_var = theano.clone(self.var, share_inputs=False)
+            # running_mean = self.mean
+            # running_var = self.var
             # set a default update for them:
             running_mean.default_update = ((1 - self.alpha) * running_mean +
                                            self.alpha * input_mean)

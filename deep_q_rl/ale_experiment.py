@@ -49,7 +49,8 @@ class ALEExperiment(object):
         """
 ## let the coach, if it is defined, fill the experience banks of the agent
         if self.coach is not None :
-            self.run_epoch( self.coach, 0, self.epoch_length, testing = False )
+            self.run_epoch( self.coach, -1, self.epoch_length, testing = False )
+            self.run_epoch( self.coach,  0, self.epoch_length, testing = False )
 
         for epoch in range( 1, self.num_epochs + 1 ) :
             self.run_epoch( self.agent, epoch, self.epoch_length, testing = False )
